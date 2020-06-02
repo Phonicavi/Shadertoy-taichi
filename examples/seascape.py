@@ -1,6 +1,8 @@
 import taichi as ti
 import numpy as np
 
+# Shadertoy: curvaticEmpire2, reference => https://www.shadertoy.com/view/Ms2SD1
+
 ti.init(debug=False, arch=ti.gpu)
 
 WIDTH, HEIGHT = 640, 320

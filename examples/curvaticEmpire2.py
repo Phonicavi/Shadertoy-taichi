@@ -1,6 +1,8 @@
 import taichi as ti
 import numpy as np
 
+# Shadertoy: curvaticEmpire2, reference => https://www.shadertoy.com/view/lstSzj
+
 ti.init(debug=False, arch=ti.gpu)
 
 m, n = 640, 320
@@ -8,7 +10,6 @@ pixels = ti.Vector(3, dt=ti.f32, shape=(m, n))
 
 @ti.kernel
 def render(t: ti.f32):
-    # Shadertoy: curvaticEmpire2, reference => https://www.shadertoy.com/view/lstSzj
 
     # camera & camera tx
     ro = ti.Vector([ti.sin(t * 0.16), 0.0, ti.cos(t * 0.1)])
