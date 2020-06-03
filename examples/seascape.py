@@ -26,8 +26,8 @@ def sea_time(timef32):
     return 1.0 + timef32 * SEA_SPEED
 
 pixels = ti.Vector(3, dt=ti.f32, shape=(WIDTH, HEIGHT))
-octave_m_v1 = ti.Vector([1.6, 1.2])
-octave_m_v2 = ti.Vector([-1.2, 1.6])
+octave_m = ti.Matrix([[1.6, 1.2], [-1.2, 1.6]])
+mouse_xf32 = ti.var(dt=ti.f32, shape=())
 
 # device
 class MouseDataGen(object):
@@ -143,8 +143,7 @@ def map(p, timef32):
         d = sea_octave((uv + sea_time(timef32)) * freq, choppy)
         d += sea_octave((uv - sea_time(timef32)) * freq, choppy)
         h += d * amp
-        # uv *= octave_m
-        uv = ti.Vector([uv.dot(octave_m_v1), uv.dot(octave_m_v2)])
+        uv = octave_m @ uv
         freq *= 1.9
         amp *= 0.22
         choppy = mix(choppy, 1.0, 0.2)
@@ -163,8 +162,7 @@ def map_detailed(p, timef32):
         d = sea_octave((uv + sea_time(timef32)) * freq, choppy)
         d += sea_octave((uv - sea_time(timef32)) * freq, choppy)
         h += d * amp
-        # uv *= octave_m
-        uv = ti.Vector([uv.dot(octave_m_v1), uv.dot(octave_m_v2)])
+        uv = octave_m @ uv
         freq *= 1.9
         amp *= 0.22
         choppy = mix(choppy, 1.0, 0.2)
@@ -226,13 +224,7 @@ def getPixel(coord, timef32):
     ori = ti.Vector([0.0, 3.5, timef32 * 5.0])
     dir = ti.Vector([uv[0], uv[1], -2.0]).normalized()
     dir[2] += uv.norm() * 0.14
-    dir_r = dir.normalized()
-    me = fromEuler(ang)
-    dir = ti.Vector([
-        dir_r.dot(ti.Vector([me[0, 0], me[0, 1], me[0, 2]])),
-        dir_r.dot(ti.Vector([me[1, 0], me[1, 1], me[1, 2]])),
-        dir_r.dot(ti.Vector([me[2, 0], me[2, 1], me[2, 2]]))
-    ])
+    dir = fromEuler(ang) @ dir.normalized()
 
     # tracing
     p = ti.Vector([0.0, 0.0, 0.0])
@@ -251,7 +243,9 @@ def getPixel(coord, timef32):
 @ti.kernel
 def render(t: ti.f32, mouse: ti.ext_arr()):
     
-    timef32 = t * 0.3 + mouse[2] * 0.01
+    mouse_xf32[None] += mouse[0] * 0.1
+    timef32 = t * 0.3 + mouse_xf32
+    
     for i, j in pixels:
         color = ti.Vector([0.0, 0.0, 0.0])
         for dx in range(-1, 2):

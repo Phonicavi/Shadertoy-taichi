@@ -116,10 +116,9 @@ def render(t: ti.f32):
 
         # rotate
         rmat = rotate(0.5 * (t + PI))
-        new_rd1 = ti.Vector([rd[1], rd[2]]).dot(ti.Vector([rmat[0, 0], rmat[0, 1]]))
-        new_rd2 = ti.Vector([rd[1], rd[2]]).dot(ti.Vector([rmat[1, 0], rmat[1, 1]]))
-        rd[1] = new_rd1
-        rd[2] = new_rd2
+        new_rdx = rmat @ ti.Vector([rd[1], rd[2]])
+        rd[1] = new_rdx[0]
+        rd[2] = new_rdx[1]
 
         # color
         pixels[i, j] = raymarch(ro, rd)
