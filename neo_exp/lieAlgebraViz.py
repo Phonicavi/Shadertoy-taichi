@@ -1,12 +1,7 @@
-from mpl_toolkits.mplot3d import Axes3D
-from matplotlib import cm
-from scipy.spatial.transform.rotation import Rotation as scirot
-import matplotlib.pyplot as plt
-
 import taichi as ti
 import numpy as np
 
-ti.init(debug=True, arch=ti.gpu)
+ti.init(debug=False, arch=ti.gpu)
 
 RES = 512
 K = ti.Matrix([[RES, 0.0, 0.5 * RES], [0.0, RES, 0.5 * RES], [0.0, 0.0, 1.0]])  # fov = atan2(1, 2), i.e. arctan(0.5)
@@ -14,8 +9,8 @@ PI = float(np.pi)
 t_pushed = 3.0 * PI
 t_farest = t_pushed + 2.0 * PI
 
-nx, ny, nz = 30, 30, 30
-pixels = ti.Vector(3, dt=ti.f32, shape=(RES, RES))
+nmax = 50  # 400
+nx, ny, nz = nmax, nmax, nmax
 z_buff = ti.Vector(4, dt=ti.f32, shape=(RES, RES))  # z_buffer: [r,g,b,depth]
 axis_angle = ti.Vector(3, dt=ti.f32, shape=(nx, ny, nz))  # axis:     [x,y,z]
 aa_colormp = ti.Vector(4, dt=ti.f32, shape=(nx, ny, nz))  # cm: [r,g,b,depth]
@@ -115,14 +110,11 @@ def animate_aa(t: ti.f32):
     # print("aa_tfm[0]", axis_angle[0, 0, 0], "->", aa_transfm[0, 0, 0], " << ", aa_colormp[0, 0, 0])
 
 @ti.kernel
-def init_pixels():
-
-    for I in ti.grouped(pixels):
-        pixels[I] = ti.Vector([0.0, 0.0, 0.0])
-        z_buff[I] = ti.Vector([0.0, 0.0, 0.0, t_farest])
-
-@ti.kernel
 def render():
+
+    # clear z_buffer
+    for I in ti.grouped(z_buff):
+        z_buff[I] = ti.Vector([0.0, 0.0, 0.0, t_farest])
 
     # update z_buffer
     for I in ti.grouped(aa_colormp):
@@ -131,16 +123,12 @@ def render():
         if depth <= z_buff[px, py][3]:
             z_buff[px, py] = ti.Vector([aa_colormp[I][0], aa_colormp[I][1], aa_colormp[I][2], depth])
 
-    # update screen
-    for I in ti.grouped(pixels):
-        pixels[I] = mix(pixels[I], ti.Vector([z_buff[I][0], z_buff[I][1], z_buff[I][2]]), 0.85)
-
 def main():
 
-    init_pixels()
+    # set euler angle limits
     euler_range = np.array([
-        [-0.6 * PI, +0.6 * PI],  # X >> [-Pi, +Pi]
-        [-0.0 * PI, +0.0 * PI],  # Y >> [-.0, +.0]
+        [-1.0 * PI, +1.0 * PI],  # X >> [-Pi, +Pi]
+        [-0.1 * PI, +0.1 * PI],  # Y >> [-Pi, +Pi]
         [-0.6 * PI, +0.6 * PI],  # Z >> [-Pi, +Pi]
     ], dtype=np.float64)
     scan_aa_grid(euler_range)
@@ -149,14 +137,8 @@ def main():
     for ts in range(1000000):
         animate_aa(ts)
         render()
-        gui.set_image(pixels.to_numpy())
+        gui.set_image(z_buff.to_numpy()[..., :3])
         gui.show()
-
-    # data = axis_angle.to_numpy().reshape((-1, 3))
-    # # print(data.shape)
-    # ax = plt.subplot(111, projection='3d')
-    # ax.scatter(data[..., 0].reshape(-1), data[..., 1].reshape(-1), data[..., 2].reshape(-2), c=(data[..., 2] <= 0.0), cmap='coolwarm', marker='^')
-    # plt.show()
 
 
 if __name__ == "__main__":
